@@ -1,0 +1,39 @@
+[tools]
+go = "1.26.0"
+"go:github.com/golangci/golangci-lint/cmd/golangci-lint" = "latest"
+"go:golang.org/x/vuln/cmd/govulncheck" = "latest"
+
+[env]
+CGO_ENABLED = "0"
+
+[tasks.build]
+description = "Build the MCP server binary"
+run = "go build -o bin/obsidian-mcp ./cmd/server"
+
+[tasks.dev]
+description = "Build and run with test vault"
+run = "go run ./cmd/server ../vault"
+
+[tasks.lint]
+description = "Run golangci-lint"
+run = "golangci-lint run ./..."
+
+[tasks.test]
+description = "Run tests with race detection"
+run = "go test -race -cover ./..."
+
+[tasks.fuzz]
+description = "Run fuzz tests"
+run = "go test -fuzz=Fuzz -fuzztime=30s ./internal/vault/..."
+
+[tasks.vuln]
+description = "Check for vulnerabilities"
+run = "govulncheck ./..."
+
+[tasks.check]
+description = "Run all checks (lint + test + vuln)"
+depends = ["lint", "test", "vuln"]
+
+[tasks.fmt]
+description = "Format code"
+run = "gofmt -w ."
