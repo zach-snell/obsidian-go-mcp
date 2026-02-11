@@ -179,3 +179,109 @@ func (v *Vault) DeleteNoteHandler(ctx context.Context, req mcp.CallToolRequest) 
 
 	return mcp.NewToolResultText(fmt.Sprintf("Successfully deleted: %s", path)), nil
 }
+
+// AppendNoteHandler appends content to a note (creates if doesn't exist)
+func (v *Vault) AppendNoteHandler(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	path, err := req.RequireString("path")
+	if err != nil {
+		return mcp.NewToolResultError("path is required"), nil
+	}
+
+	content, err := req.RequireString("content")
+	if err != nil {
+		return mcp.NewToolResultError("content is required"), nil
+	}
+
+	if !strings.HasSuffix(path, ".md") {
+		return mcp.NewToolResultError("path must end with .md"), nil
+	}
+
+	fullPath := filepath.Join(v.path, path)
+
+	if !v.isPathSafe(fullPath) {
+		return mcp.NewToolResultError("path must be within vault"), nil
+	}
+
+	// Create directory if needed
+	dir := filepath.Dir(fullPath)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to create directory: %v", err)), nil
+	}
+
+	// Open file for appending (create if not exists)
+	f, err := os.OpenFile(fullPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to open note: %v", err)), nil
+	}
+	defer f.Close()
+
+	// Add newline before content if file is not empty
+	info, _ := f.Stat()
+	if info.Size() > 0 {
+		content = "\n" + content
+	}
+
+	if _, err := f.WriteString(content); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to append to note: %v", err)), nil
+	}
+
+	return mcp.NewToolResultText(fmt.Sprintf("Appended to: %s", path)), nil
+}
+
+// RecentNotesHandler lists recently modified notes
+func (v *Vault) RecentNotesHandler(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	limit := int(req.GetInt("limit", 10))
+	dir := req.GetString("directory", "")
+
+	searchPath := v.path
+	if dir != "" {
+		searchPath = filepath.Join(v.path, dir)
+	}
+
+	type noteInfo struct {
+		path    string
+		modTime int64
+	}
+
+	var notes []noteInfo
+	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() && strings.HasSuffix(path, ".md") {
+			relPath, _ := filepath.Rel(v.path, path)
+			notes = append(notes, noteInfo{path: relPath, modTime: info.ModTime().Unix()})
+		}
+		return nil
+	})
+
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to list notes: %v", err)), nil
+	}
+
+	if len(notes) == 0 {
+		return mcp.NewToolResultText("No notes found"), nil
+	}
+
+	// Sort by modification time (newest first)
+	for i := 0; i < len(notes)-1; i++ {
+		for j := i + 1; j < len(notes); j++ {
+			if notes[j].modTime > notes[i].modTime {
+				notes[i], notes[j] = notes[j], notes[i]
+			}
+		}
+	}
+
+	// Apply limit
+	if limit > 0 && limit < len(notes) {
+		notes = notes[:limit]
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Recent %d notes:\n\n", len(notes)))
+	for _, n := range notes {
+		sb.WriteString(n.path + "\n")
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}

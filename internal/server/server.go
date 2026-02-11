@@ -12,7 +12,7 @@ func New(vaultPath string) *server.MCPServer {
 
 	s := server.NewMCPServer(
 		"Obsidian Vault MCP",
-		"0.1.0",
+		"0.2.0",
 		server.WithToolCapabilities(false),
 	)
 
@@ -149,5 +149,90 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 			),
 		),
 		v.ToggleTaskHandler,
+	)
+
+	// append-note
+	s.AddTool(
+		mcp.NewTool("append-note",
+			mcp.WithDescription("Append content to a note (creates if doesn't exist)"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note (.md extension required)"),
+			),
+			mcp.WithString("content",
+				mcp.Required(),
+				mcp.Description("Content to append"),
+			),
+		),
+		v.AppendNoteHandler,
+	)
+
+	// recent-notes
+	s.AddTool(
+		mcp.NewTool("recent-notes",
+			mcp.WithDescription("List recently modified notes"),
+			mcp.WithNumber("limit",
+				mcp.Description("Maximum number of notes to return (default: 10)"),
+			),
+			mcp.WithString("directory",
+				mcp.Description("Limit to specific directory (optional)"),
+			),
+		),
+		v.RecentNotesHandler,
+	)
+
+	// backlinks
+	s.AddTool(
+		mcp.NewTool("backlinks",
+			mcp.WithDescription("Find all notes that link to a given note"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note to find backlinks for"),
+			),
+		),
+		v.BacklinksHandler,
+	)
+
+	// query-frontmatter
+	s.AddTool(
+		mcp.NewTool("query-frontmatter",
+			mcp.WithDescription("Search notes by frontmatter properties"),
+			mcp.WithString("query",
+				mcp.Required(),
+				mcp.Description("Query in format: key=value or key:value (e.g., status=draft, type:project)"),
+			),
+			mcp.WithString("directory",
+				mcp.Description("Limit search to specific directory (optional)"),
+			),
+		),
+		v.QueryFrontmatterHandler,
+	)
+
+	// get-frontmatter
+	s.AddTool(
+		mcp.NewTool("get-frontmatter",
+			mcp.WithDescription("Get frontmatter properties of a note"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note (.md extension required)"),
+			),
+		),
+		v.GetFrontmatterHandler,
+	)
+
+	// rename-note
+	s.AddTool(
+		mcp.NewTool("rename-note",
+			mcp.WithDescription("Rename a note and update all links to it"),
+			mcp.WithString("old_path",
+				mcp.Required(),
+				mcp.Description("Current path of the note"),
+			),
+			mcp.WithString("new_path",
+				mcp.Required(),
+				mcp.Description("New path for the note"),
+			),
+		),
+		v.RenameNoteHandler,
 	)
 }

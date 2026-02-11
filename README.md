@@ -86,11 +86,14 @@ Add to `opencode.json`:
 
 ## Features
 
-- **CRUD Operations**: List, read, write, delete notes
+- **CRUD Operations**: List, read, write, delete, append notes
 - **Search**: Case-insensitive content search
 - **Task Parsing**: Extract checkboxes with due dates, priorities, tags
 - **Tag Search**: Find notes by tags (AND operation)
 - **MOC Discovery**: Find Maps of Content (#moc tagged notes)
+- **Backlinks**: Find all notes linking to a given note
+- **Frontmatter Queries**: Search notes by YAML properties
+- **Rename with Link Updates**: Refactor notes safely
 - **Pagination**: Limit/offset for large vaults
 - **Security**: Path traversal protection
 
@@ -101,12 +104,18 @@ Add to `opencode.json`:
 | `list-notes` | List markdown files (supports pagination) |
 | `read-note` | Read note content |
 | `write-note` | Create/update note |
+| `append-note` | Append content to note (quick capture) |
 | `delete-note` | Delete note |
+| `rename-note` | Rename note and update all links |
 | `search-vault` | Content search |
 | `list-tasks` | Parse checkboxes with metadata |
+| `toggle-task` | Toggle task completion |
 | `search-by-tags` | Tag-based search (AND) |
 | `discover-mocs` | Find MOC structure |
-| `toggle-task` | Toggle task completion |
+| `recent-notes` | List recently modified notes |
+| `backlinks` | Find notes linking to a given note |
+| `query-frontmatter` | Search by YAML properties (e.g., `status=draft`) |
+| `get-frontmatter` | Get frontmatter of a note |
 
 ## Task Format
 
