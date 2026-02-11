@@ -12,7 +12,7 @@ func New(vaultPath string) *server.MCPServer {
 
 	s := server.NewMCPServer(
 		"Obsidian Vault MCP",
-		"0.2.0",
+		"0.3.0",
 		server.WithToolCapabilities(false),
 	)
 

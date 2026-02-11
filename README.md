@@ -87,38 +87,71 @@ Add to `opencode.json`:
 ## Features
 
 - **CRUD Operations**: List, read, write, delete, append, move notes
-- **Search**: Content search, tag search, frontmatter queries
+- **Batch Operations**: Read multiple notes, bulk tagging, bulk moves
+- **Search**: Content search, regex search, date search, tag search, frontmatter queries
 - **Task Parsing**: Extract checkboxes with due dates, priorities, tags
-- **Graph Analysis**: Backlinks, forward links, orphan detection, broken links
+- **Graph Analysis**: Backlinks, forward links, orphan detection, broken links, suggest links
+- **Knowledge Gap Analysis**: Find stubs, outdated notes, unlinked mentions
 - **Periodic Notes**: Daily, weekly, monthly, quarterly, yearly notes
 - **Templates**: Create notes from templates with variable substitution
 - **Canvas Support**: Read, create, and modify Obsidian canvas files
 - **Folder Management**: List, create, delete folders
+- **MOC Generation**: Generate and update Maps of Content
+- **Note Refactoring**: Split, merge, extract sections, duplicate notes
+- **Inline Fields**: Dataview-style field support (key:: value)
 - **Vault Statistics**: Word counts, task completion %, top tags
 - **Security**: Path traversal protection
 
-## MCP Tools (38 total)
+## MCP Tools (67 total)
 
 ### Core Note Operations
 | Tool | Description |
 |------|-------------|
 | `list-notes` | List markdown files (supports pagination) |
 | `read-note` | Read note content |
+| `read-notes` | Read multiple notes in one call |
 | `write-note` | Create/update note |
 | `append-note` | Append content to note (quick capture) |
 | `delete-note` | Delete note |
 | `rename-note` | Rename note and update all links |
 | `move-note` | Move note to new location with link updates |
 | `recent-notes` | List recently modified notes |
+| `duplicate-note` | Create a copy of a note |
+
+### Batch Operations
+| Tool | Description |
+|------|-------------|
+| `get-note-summary` | Get lightweight summary (frontmatter, stats, preview) |
+| `get-section` | Extract a specific heading section |
+| `get-headings` | List all headings in a note |
+| `search-headings` | Search across all headings in vault |
 
 ### Search & Discovery
 | Tool | Description |
 |------|-------------|
 | `search-vault` | Content search |
+| `search-advanced` | Multi-term search with AND/OR operators |
+| `search-by-date` | Find notes by modification date range |
+| `search-regex` | Search using regular expressions |
 | `search-by-tags` | Tag-based search (AND) |
 | `discover-mocs` | Find MOC structure |
 | `query-frontmatter` | Search by YAML properties (e.g., `status=draft`) |
 | `get-frontmatter` | Get frontmatter of a note |
+
+### Frontmatter Manipulation
+| Tool | Description |
+|------|-------------|
+| `set-frontmatter` | Set or update a frontmatter property |
+| `remove-frontmatter-key` | Remove a property from frontmatter |
+| `add-alias` | Add an alias to a note |
+| `add-tag-to-frontmatter` | Add a tag to frontmatter tags array |
+
+### Inline Fields (Dataview)
+| Tool | Description |
+|------|-------------|
+| `get-inline-fields` | Extract Dataview-style fields (key:: value) |
+| `set-inline-field` | Set or update an inline field |
+| `query-inline-fields` | Search notes by inline field values |
 
 ### Graph Analysis
 | Tool | Description |
@@ -127,6 +160,14 @@ Add to `opencode.json`:
 | `forward-links` | Show outgoing links FROM a note |
 | `orphan-notes` | Find notes with no links to/from them |
 | `broken-links` | Find wikilinks pointing to non-existent notes |
+
+### Knowledge Gap Analysis
+| Tool | Description |
+|------|-------------|
+| `find-stubs` | Find short notes that may need expansion |
+| `find-outdated` | Find notes not modified recently |
+| `unlinked-mentions` | Find text mentions not linked |
+| `suggest-links` | Suggest notes that should be linked |
 
 ### Tasks
 | Tool | Description |
@@ -152,12 +193,33 @@ Add to `opencode.json`:
 | `get-template` | Show template content and variables |
 | `apply-template` | Create note from template with variable substitution |
 
+### MOC & Index Generation
+| Tool | Description |
+|------|-------------|
+| `generate-moc` | Generate a Map of Content from directory |
+| `update-moc` | Update existing MOC with new notes |
+| `generate-index` | Generate alphabetical index of all notes |
+
+### Note Refactoring
+| Tool | Description |
+|------|-------------|
+| `split-note` | Split a note at heading boundaries |
+| `merge-notes` | Merge multiple notes into one |
+| `extract-section` | Extract a section to a new note |
+
 ### Folders
 | Tool | Description |
 |------|-------------|
 | `list-folders` | List all folders in the vault |
 | `create-folder` | Create a new folder |
 | `delete-folder` | Delete a folder |
+
+### Bulk Operations
+| Tool | Description |
+|------|-------------|
+| `bulk-tag` | Add/remove tags from multiple notes |
+| `bulk-move` | Move multiple notes to a folder |
+| `bulk-set-frontmatter` | Set frontmatter property on multiple notes |
 
 ### Canvas
 | Tool | Description |
