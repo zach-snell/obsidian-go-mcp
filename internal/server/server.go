@@ -604,4 +604,80 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 		),
 		v.AddCanvasEdgeHandler,
 	)
+
+	// read-notes (batch)
+	s.AddTool(
+		mcp.NewTool("read-notes",
+			mcp.WithDescription("Read multiple notes in one call"),
+			mcp.WithString("paths",
+				mcp.Required(),
+				mcp.Description("Comma-separated paths or JSON array of paths"),
+			),
+			mcp.WithBoolean("include_frontmatter",
+				mcp.Description("Include frontmatter in output (default: true)"),
+			),
+		),
+		v.ReadNotesHandler,
+	)
+
+	// get-note-summary
+	s.AddTool(
+		mcp.NewTool("get-note-summary",
+			mcp.WithDescription("Get lightweight summary of a note (frontmatter, stats, preview)"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+			mcp.WithNumber("lines",
+				mcp.Description("Number of preview lines (default: 5)"),
+			),
+		),
+		v.GetNoteSummaryHandler,
+	)
+
+	// get-section
+	s.AddTool(
+		mcp.NewTool("get-section",
+			mcp.WithDescription("Extract a specific heading section from a note"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+			mcp.WithString("heading",
+				mcp.Required(),
+				mcp.Description("Heading text to extract (case-insensitive)"),
+			),
+		),
+		v.GetSectionHandler,
+	)
+
+	// get-headings
+	s.AddTool(
+		mcp.NewTool("get-headings",
+			mcp.WithDescription("List all headings in a note"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+		),
+		v.GetHeadingsHandler,
+	)
+
+	// search-headings
+	s.AddTool(
+		mcp.NewTool("search-headings",
+			mcp.WithDescription("Search across all heading content in the vault"),
+			mcp.WithString("query",
+				mcp.Required(),
+				mcp.Description("Search query for heading text"),
+			),
+			mcp.WithNumber("level",
+				mcp.Description("Filter by heading level (1-6, 0 for all)"),
+			),
+			mcp.WithString("directory",
+				mcp.Description("Limit search to specific directory"),
+			),
+		),
+		v.SearchHeadingsHandler,
+	)
 }
