@@ -17,12 +17,26 @@ type Vault struct {
 
 // New creates a new Vault instance
 func New(path string) *Vault {
-	return &Vault{path: path}
+	cleanPath, _ := filepath.Abs(filepath.Clean(path))
+	return &Vault{path: cleanPath}
 }
 
-// ListNotesHandler lists all notes in the vault
+// isPathSafe checks if the given path is within the vault (prevents path traversal)
+func (v *Vault) isPathSafe(fullPath string) bool {
+	cleanPath := filepath.Clean(fullPath)
+	rel, err := filepath.Rel(v.path, cleanPath)
+	if err != nil {
+		return false
+	}
+	// Path is unsafe if it tries to escape via ".."
+	return !strings.HasPrefix(rel, "..") && rel != ".."
+}
+
+// ListNotesHandler lists all notes in the vault with optional pagination
 func (v *Vault) ListNotesHandler(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	dir := req.GetString("directory", "")
+	limit := int(req.GetInt("limit", 0))   // 0 = no limit
+	offset := int(req.GetInt("offset", 0)) // 0 = start from beginning
 
 	searchPath := v.path
 	if dir != "" {
@@ -45,11 +59,32 @@ func (v *Vault) ListNotesHandler(ctx context.Context, req mcp.CallToolRequest) (
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to list notes: %v", err)), nil
 	}
 
-	if len(notes) == 0 {
+	totalCount := len(notes)
+	if totalCount == 0 {
 		return mcp.NewToolResultText("No notes found"), nil
 	}
 
-	return mcp.NewToolResultText(fmt.Sprintf("Found %d notes:\n\n%s", len(notes), strings.Join(notes, "\n"))), nil
+	// Apply pagination
+	if offset > 0 {
+		if offset >= totalCount {
+			return mcp.NewToolResultText(fmt.Sprintf("Offset %d exceeds total count %d", offset, totalCount)), nil
+		}
+		notes = notes[offset:]
+	}
+
+	if limit > 0 && limit < len(notes) {
+		notes = notes[:limit]
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Found %d notes", totalCount))
+	if offset > 0 || limit > 0 {
+		sb.WriteString(fmt.Sprintf(" (showing %d-%d)", offset+1, offset+len(notes)))
+	}
+	sb.WriteString(":\n\n")
+	sb.WriteString(strings.Join(notes, "\n"))
+
+	return mcp.NewToolResultText(sb.String()), nil
 }
 
 // ReadNoteHandler reads a note's content
@@ -66,7 +101,7 @@ func (v *Vault) ReadNoteHandler(ctx context.Context, req mcp.CallToolRequest) (*
 	fullPath := filepath.Join(v.path, path)
 
 	// Security: ensure path is within vault
-	if !strings.HasPrefix(fullPath, v.path) {
+	if !v.isPathSafe(fullPath) {
 		return mcp.NewToolResultError("path must be within vault"), nil
 	}
 
@@ -100,17 +135,17 @@ func (v *Vault) WriteNoteHandler(ctx context.Context, req mcp.CallToolRequest) (
 	fullPath := filepath.Join(v.path, path)
 
 	// Security: ensure path is within vault
-	if !strings.HasPrefix(fullPath, v.path) {
+	if !v.isPathSafe(fullPath) {
 		return mcp.NewToolResultError("path must be within vault"), nil
 	}
 
 	// Create directory if needed
 	dir := filepath.Dir(fullPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create directory: %v", err)), nil
 	}
 
-	if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to write note: %v", err)), nil
 	}
 
@@ -131,7 +166,7 @@ func (v *Vault) DeleteNoteHandler(ctx context.Context, req mcp.CallToolRequest) 
 	fullPath := filepath.Join(v.path, path)
 
 	// Security: ensure path is within vault
-	if !strings.HasPrefix(fullPath, v.path) {
+	if !v.isPathSafe(fullPath) {
 		return mcp.NewToolResultError("path must be within vault"), nil
 	}
 

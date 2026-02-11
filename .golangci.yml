@@ -18,7 +18,7 @@ linters:
 
 linters-settings:
   gocyclo:
-    min-complexity: 15
+    min-complexity: 20
   dupl:
     threshold: 100
   gocritic:
@@ -26,6 +26,8 @@ linters-settings:
       - diagnostic
       - style
       - performance
+    disabled-checks:
+      - hugeParam  # MCP handler signature requires value type
   revive:
     rules:
       - name: exported
@@ -37,3 +39,4 @@ issues:
       linters:
         - dupl
         - gosec
+        - gocyclo

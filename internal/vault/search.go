@@ -71,7 +71,7 @@ func (v *Vault) SearchVaultHandler(ctx context.Context, req mcp.CallToolRequest)
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Found %d matches for \"%s\":\n\n", len(results), query))
+	sb.WriteString(fmt.Sprintf("Found %d matches for %q:\n\n", len(results), query))
 
 	currentFile := ""
 	for _, r := range results {
@@ -88,9 +88,12 @@ func (v *Vault) SearchVaultHandler(ctx context.Context, req mcp.CallToolRequest)
 	return mcp.NewToolResultText(sb.String()), nil
 }
 
-func truncate(s string, max int) string {
-	if len(s) <= max {
+func truncate(s string, maxLen int) string {
+	if maxLen <= 0 {
+		return ""
+	}
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max] + "..."
+	return s[:maxLen] + "..."
 }

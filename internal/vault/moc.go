@@ -33,7 +33,7 @@ func ExtractWikilinks(content string) []string {
 	seen := make(map[string]bool)
 	for _, match := range matches {
 		link := strings.TrimSpace(match[1])
-		if !seen[link] {
+		if link != "" && !seen[link] {
 			links = append(links, link)
 			seen[link] = true
 		}
@@ -54,7 +54,7 @@ func ExtractH1Title(content string) string {
 func IsMOC(content string) bool {
 	tags := ExtractTags(content)
 	for _, tag := range tags {
-		if strings.ToLower(tag) == "moc" {
+		if strings.EqualFold(tag, "moc") {
 			return true
 		}
 	}

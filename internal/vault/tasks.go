@@ -28,7 +28,7 @@ var (
 	// Matches: 📅 2024-01-15
 	dueDateRegex = regexp.MustCompile(`📅\s*(\d{4}-\d{2}-\d{2})`)
 	// Matches: ⏫ (high), 🔼 (medium), 🔽 (low)
-	priorityRegex = regexp.MustCompile(`(⏫|🔼|🔽)`)
+	priorityRegex = regexp.MustCompile(`([⏫🔼🔽])`)
 	// Matches: #tag
 	tagRegex = regexp.MustCompile(`#([a-zA-Z0-9_\-]+)`)
 )
@@ -45,7 +45,7 @@ func ParseTask(line string, lineNum int) *Task {
 
 	task := &Task{
 		Line:      lineNum,
-		Completed: strings.ToLower(status) == "x",
+		Completed: strings.EqualFold(status, "x"),
 		Text:      text,
 	}
 
@@ -165,4 +165,73 @@ func (v *Vault) ListTasksHandler(ctx context.Context, req mcp.CallToolRequest) (
 	}
 
 	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// ToggleTaskHandler toggles a task's completion status
+func (v *Vault) ToggleTaskHandler(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	path, err := req.RequireString("path")
+	if err != nil {
+		return mcp.NewToolResultError("path is required"), nil
+	}
+
+	line, err := req.RequireInt("line")
+	if err != nil {
+		return mcp.NewToolResultError("line is required"), nil
+	}
+
+	if !strings.HasSuffix(path, ".md") {
+		return mcp.NewToolResultError("path must end with .md"), nil
+	}
+
+	fullPath := filepath.Join(v.path, path)
+
+	// Security: ensure path is within vault
+	rel, err := filepath.Rel(v.path, filepath.Clean(fullPath))
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return mcp.NewToolResultError("path must be within vault"), nil
+	}
+
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return mcp.NewToolResultError(fmt.Sprintf("Note not found: %s", path)), nil
+		}
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read note: %v", err)), nil
+	}
+
+	lines := strings.Split(string(content), "\n")
+
+	if line < 1 || line > len(lines) {
+		return mcp.NewToolResultError(fmt.Sprintf("Line %d out of range (1-%d)", line, len(lines))), nil
+	}
+
+	targetLine := lines[line-1]
+	task := ParseTask(targetLine, line)
+	if task == nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Line %d is not a task", line)), nil
+	}
+
+	// Toggle the checkbox
+	var newLine string
+	if task.Completed {
+		// [x] or [X] -> [ ]
+		newLine = strings.Replace(targetLine, "[x]", "[ ]", 1)
+		newLine = strings.Replace(newLine, "[X]", "[ ]", 1)
+	} else {
+		// [ ] -> [x]
+		newLine = strings.Replace(targetLine, "[ ]", "[x]", 1)
+	}
+
+	lines[line-1] = newLine
+
+	if err := os.WriteFile(fullPath, []byte(strings.Join(lines, "\n")), 0o600); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to write note: %v", err)), nil
+	}
+
+	newStatus := "completed"
+	if task.Completed {
+		newStatus = "open"
+	}
+
+	return mcp.NewToolResultText(fmt.Sprintf("Toggled task on line %d to %s: %s", line, newStatus, task.Text)), nil
 }

@@ -30,6 +30,12 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 			mcp.WithString("directory",
 				mcp.Description("Directory path relative to vault root (optional)"),
 			),
+			mcp.WithNumber("limit",
+				mcp.Description("Maximum number of notes to return (optional, 0 = no limit)"),
+			),
+			mcp.WithNumber("offset",
+				mcp.Description("Number of notes to skip for pagination (optional, default 0)"),
+			),
 		),
 		v.ListNotesHandler,
 	)
@@ -127,5 +133,21 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 			),
 		),
 		v.DiscoverMOCsHandler,
+	)
+
+	// toggle-task
+	s.AddTool(
+		mcp.NewTool("toggle-task",
+			mcp.WithDescription("Toggle a task's completion status (checked/unchecked)"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note containing the task (.md extension required)"),
+			),
+			mcp.WithNumber("line",
+				mcp.Required(),
+				mcp.Description("Line number of the task to toggle (1-based)"),
+			),
+		),
+		v.ToggleTaskHandler,
 	)
 }

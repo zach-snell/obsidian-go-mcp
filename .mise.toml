@@ -23,8 +23,17 @@ description = "Run tests with race detection"
 run = "go test -race -cover ./..."
 
 [tasks.fuzz]
-description = "Run fuzz tests"
-run = "go test -fuzz=Fuzz -fuzztime=30s ./internal/vault/..."
+description = "Run all fuzz tests (10s each)"
+run = """
+for fuzz in ParseTask ExtractTags ExtractWikilinks ExtractH1Title Truncate IsMOC; do
+  echo "=== Fuzzing $fuzz ==="
+  go test -fuzz=Fuzz$fuzz -fuzztime=10s ./internal/vault/...
+done
+"""
+
+[tasks."fuzz:one"]
+description = "Run a single fuzz test (FUZZ_NAME=ParseTask FUZZ_TIME=30s)"
+run = "go test -fuzz=Fuzz${FUZZ_NAME:-ParseTask} -fuzztime=${FUZZ_TIME:-30s} ./internal/vault/..."
 
 [tasks.vuln]
 description = "Check for vulnerabilities"
