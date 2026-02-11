@@ -26,6 +26,11 @@ curl -sSL https://raw.githubusercontent.com/zach-snell/obsidian-go-mcp/main/inst
 
 This auto-detects your OS/architecture and installs to `/usr/local/bin`.
 
+> **No sudo?** Install to `~/.local/bin` instead:
+> ```bash
+> curl -sSL https://raw.githubusercontent.com/zach-snell/obsidian-go-mcp/main/install.sh | bash -s -- --user
+> ```
+
 <details>
 <summary>Manual download</summary>
 

@@ -6,7 +6,14 @@ set -e
 
 REPO="zach-snell/obsidian-go-mcp"
 BINARY_NAME="obsidian-mcp"
-INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+
+# Default install dir, can be overridden with --user or INSTALL_DIR env var
+if [ "$1" = "--user" ]; then
+    INSTALL_DIR="${HOME}/.local/bin"
+    mkdir -p "$INSTALL_DIR"
+else
+    INSTALL_DIR="${INSTALL_DIR:-/usr/local/bin}"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -138,8 +145,10 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
     echo ""
     echo "Usage:"
     echo "  curl -sSL https://raw.githubusercontent.com/${REPO}/main/install.sh | bash"
+    echo "  curl -sSL ... | bash -s -- --user   # Install to ~/.local/bin (no sudo)"
     echo ""
     echo "Options:"
+    echo "  --user           Install to ~/.local/bin (no sudo required)"
     echo "  --version, -v    Print latest version"
     echo "  --help, -h       Show this help"
     echo ""
