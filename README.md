@@ -94,11 +94,15 @@ Add to `opencode.json`:
 - **Backlinks**: Find all notes linking to a given note
 - **Frontmatter Queries**: Search notes by YAML properties
 - **Rename with Link Updates**: Refactor notes safely
+- **Daily Notes**: Get/create daily notes with configurable format
+- **Templates**: Create notes from templates with variable substitution
+- **Vault Statistics**: Word counts, task completion %, top tags
 - **Pagination**: Limit/offset for large vaults
 - **Security**: Path traversal protection
 
-## MCP Tools
+## MCP Tools (21 total)
 
+### Core Note Operations
 | Tool | Description |
 |------|-------------|
 | `list-notes` | List markdown files (supports pagination) |
@@ -107,15 +111,74 @@ Add to `opencode.json`:
 | `append-note` | Append content to note (quick capture) |
 | `delete-note` | Delete note |
 | `rename-note` | Rename note and update all links |
+| `recent-notes` | List recently modified notes |
+
+### Search & Discovery
+| Tool | Description |
+|------|-------------|
 | `search-vault` | Content search |
-| `list-tasks` | Parse checkboxes with metadata |
-| `toggle-task` | Toggle task completion |
 | `search-by-tags` | Tag-based search (AND) |
 | `discover-mocs` | Find MOC structure |
-| `recent-notes` | List recently modified notes |
 | `backlinks` | Find notes linking to a given note |
 | `query-frontmatter` | Search by YAML properties (e.g., `status=draft`) |
 | `get-frontmatter` | Get frontmatter of a note |
+
+### Tasks
+| Tool | Description |
+|------|-------------|
+| `list-tasks` | Parse checkboxes with metadata |
+| `toggle-task` | Toggle task completion |
+
+### Daily Notes
+| Tool | Description |
+|------|-------------|
+| `daily-note` | Get or create today's daily note |
+| `list-daily-notes` | List all daily notes |
+
+### Templates
+| Tool | Description |
+|------|-------------|
+| `list-templates` | List available templates |
+| `get-template` | Show template content and variables |
+| `apply-template` | Create note from template with variable substitution |
+
+### Analytics
+| Tool | Description |
+|------|-------------|
+| `vault-stats` | Vault statistics (notes, words, tasks, top tags)
+
+## Template Variables
+
+Templates support `{{variable}}` and `{{variable:default}}` syntax:
+
+```markdown
+---
+title: {{title}}
+date: {{date}}
+author: {{author:Anonymous}}
+---
+
+# {{title}}
+
+Created on {{date}} at {{time}}.
+```
+
+### Built-in Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{{date}}` | Current date | `2024-01-15` |
+| `{{time}}` | Current time | `14:30` |
+| `{{datetime}}` | Date and time | `2024-01-15 14:30` |
+| `{{year}}` | Current year | `2024` |
+| `{{month}}` | Current month | `01` |
+| `{{day}}` | Current day | `15` |
+| `{{title}}` | Note title (without .md) | `My Note` |
+| `{{filename}}` | Full filename | `My Note.md` |
+| `{{folder}}` | Target folder | `notes` |
+| `{{timestamp}}` | Unix timestamp | `1705332600` |
+
+Pass custom variables: `variables="author=John,project=Alpha"`
 
 ## Task Format
 

@@ -235,4 +235,97 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 		),
 		v.RenameNoteHandler,
 	)
+
+	// daily-note
+	s.AddTool(
+		mcp.NewTool("daily-note",
+			mcp.WithDescription("Get or create a daily note"),
+			mcp.WithString("date",
+				mcp.Description("Date for the note (default: today). Formats: YYYY-MM-DD, MM-DD-YYYY, etc."),
+			),
+			mcp.WithString("folder",
+				mcp.Description("Folder for daily notes (default: 'daily')"),
+			),
+			mcp.WithString("format",
+				mcp.Description("Date format for filename (default: '2006-01-02', Go time format)"),
+			),
+			mcp.WithBoolean("create",
+				mcp.Description("Create if missing (default: true)"),
+			),
+		),
+		v.DailyNoteHandler,
+	)
+
+	// list-daily-notes
+	s.AddTool(
+		mcp.NewTool("list-daily-notes",
+			mcp.WithDescription("List daily notes"),
+			mcp.WithString("folder",
+				mcp.Description("Folder for daily notes (default: 'daily')"),
+			),
+			mcp.WithNumber("limit",
+				mcp.Description("Maximum notes to return (default: 30)"),
+			),
+		),
+		v.ListDailyNotesHandler,
+	)
+
+	// list-templates
+	s.AddTool(
+		mcp.NewTool("list-templates",
+			mcp.WithDescription("List available templates"),
+			mcp.WithString("folder",
+				mcp.Description("Templates folder (default: 'templates')"),
+			),
+		),
+		v.ListTemplatesHandler,
+	)
+
+	// get-template
+	s.AddTool(
+		mcp.NewTool("get-template",
+			mcp.WithDescription("Get a template and show its variables"),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("Template name (with or without .md)"),
+			),
+			mcp.WithString("folder",
+				mcp.Description("Templates folder (default: 'templates')"),
+			),
+		),
+		v.GetTemplateHandler,
+	)
+
+	// apply-template
+	s.AddTool(
+		mcp.NewTool("apply-template",
+			mcp.WithDescription("Create a new note from a template"),
+			mcp.WithString("template",
+				mcp.Required(),
+				mcp.Description("Template name"),
+			),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Target path for the new note"),
+			),
+			mcp.WithString("variables",
+				mcp.Description("Variables as 'key1=value1,key2=value2'. Built-ins: date, time, title, filename"),
+			),
+			mcp.WithString("template_folder",
+				mcp.Description("Templates folder (default: 'templates')"),
+			),
+		),
+		v.ApplyTemplateHandler,
+	)
+
+	// vault-stats
+	s.AddTool(
+		mcp.NewTool("vault-stats",
+			mcp.WithDescription("Get statistics about the vault"),
+			mcp.WithString("directory",
+				mcp.Description("Limit stats to specific directory (optional)"),
+			),
+		),
+		v.VaultStatsHandler,
+	)
 }
