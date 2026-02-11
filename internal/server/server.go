@@ -680,4 +680,72 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 		),
 		v.SearchHeadingsHandler,
 	)
+
+	// set-frontmatter
+	s.AddTool(
+		mcp.NewTool("set-frontmatter",
+			mcp.WithDescription("Set or update a frontmatter property"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+			mcp.WithString("key",
+				mcp.Required(),
+				mcp.Description("Property key"),
+			),
+			mcp.WithString("value",
+				mcp.Required(),
+				mcp.Description("Property value"),
+			),
+		),
+		v.SetFrontmatterHandler,
+	)
+
+	// remove-frontmatter-key
+	s.AddTool(
+		mcp.NewTool("remove-frontmatter-key",
+			mcp.WithDescription("Remove a property from frontmatter"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+			mcp.WithString("key",
+				mcp.Required(),
+				mcp.Description("Property key to remove"),
+			),
+		),
+		v.RemoveFrontmatterKeyHandler,
+	)
+
+	// add-alias
+	s.AddTool(
+		mcp.NewTool("add-alias",
+			mcp.WithDescription("Add an alias to a note's frontmatter"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+			mcp.WithString("alias",
+				mcp.Required(),
+				mcp.Description("Alias to add"),
+			),
+		),
+		v.AddAliasHandler,
+	)
+
+	// add-tag-to-frontmatter
+	s.AddTool(
+		mcp.NewTool("add-tag-to-frontmatter",
+			mcp.WithDescription("Add a tag to frontmatter tags array"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note"),
+			),
+			mcp.WithString("tag",
+				mcp.Required(),
+				mcp.Description("Tag to add (with or without #)"),
+			),
+		),
+		v.AddTagToFrontmatterHandler,
+	)
 }
