@@ -1077,4 +1077,62 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 		),
 		v.DuplicateNoteHandler,
 	)
+
+	// bulk-tag
+	s.AddTool(
+		mcp.NewTool("bulk-tag",
+			mcp.WithDescription("Add or remove a tag from multiple notes"),
+			mcp.WithString("paths",
+				mcp.Required(),
+				mcp.Description("Comma-separated paths or JSON array of notes"),
+			),
+			mcp.WithString("tag",
+				mcp.Required(),
+				mcp.Description("Tag to add/remove (with or without #)"),
+			),
+			mcp.WithString("action",
+				mcp.Description("Action: add, remove (default: add)"),
+			),
+		),
+		v.BulkTagHandler,
+	)
+
+	// bulk-move
+	s.AddTool(
+		mcp.NewTool("bulk-move",
+			mcp.WithDescription("Move multiple notes to a folder"),
+			mcp.WithString("paths",
+				mcp.Required(),
+				mcp.Description("Comma-separated paths or JSON array of notes"),
+			),
+			mcp.WithString("destination",
+				mcp.Required(),
+				mcp.Description("Destination folder path"),
+			),
+			mcp.WithBoolean("update_links",
+				mcp.Description("Update wikilinks in other notes (default: true)"),
+			),
+		),
+		v.BulkMoveHandler,
+	)
+
+	// bulk-set-frontmatter
+	s.AddTool(
+		mcp.NewTool("bulk-set-frontmatter",
+			mcp.WithDescription("Set a frontmatter property on multiple notes"),
+			mcp.WithString("paths",
+				mcp.Required(),
+				mcp.Description("Comma-separated paths or JSON array of notes"),
+			),
+			mcp.WithString("key",
+				mcp.Required(),
+				mcp.Description("Frontmatter property key"),
+			),
+			mcp.WithString("value",
+				mcp.Required(),
+				mcp.Description("Property value to set"),
+			),
+		),
+		v.BulkSetFrontmatterHandler,
+	)
 }
