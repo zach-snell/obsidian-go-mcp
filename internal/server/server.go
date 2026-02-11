@@ -930,4 +930,65 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 		),
 		v.SearchRegexHandler,
 	)
+
+	// generate-moc
+	s.AddTool(
+		mcp.NewTool("generate-moc",
+			mcp.WithDescription("Generate a Map of Content from a directory"),
+			mcp.WithString("directory",
+				mcp.Description("Directory to generate MOC from (default: vault root)"),
+			),
+			mcp.WithString("title",
+				mcp.Description("Title for the MOC (default: directory name + ' MOC')"),
+			),
+			mcp.WithString("output",
+				mcp.Description("Output path for the MOC file (if not set, returns content)"),
+			),
+			mcp.WithString("group_by",
+				mcp.Description("Grouping: none, alpha, tag (default: none)"),
+			),
+			mcp.WithBoolean("recursive",
+				mcp.Description("Include subdirectories (default: false)"),
+			),
+		),
+		v.GenerateMOCHandler,
+	)
+
+	// update-moc
+	s.AddTool(
+		mcp.NewTool("update-moc",
+			mcp.WithDescription("Update an existing MOC with new notes"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the MOC file"),
+			),
+			mcp.WithString("directory",
+				mcp.Description("Directory to scan for new notes"),
+			),
+			mcp.WithBoolean("recursive",
+				mcp.Description("Include subdirectories (default: false)"),
+			),
+		),
+		v.UpdateMOCHandler,
+	)
+
+	// generate-index
+	s.AddTool(
+		mcp.NewTool("generate-index",
+			mcp.WithDescription("Generate an alphabetical index of all notes"),
+			mcp.WithString("directory",
+				mcp.Description("Directory to index (default: vault root)"),
+			),
+			mcp.WithString("output",
+				mcp.Description("Output path for the index file (if not set, returns content)"),
+			),
+			mcp.WithString("title",
+				mcp.Description("Title for the index (default: 'Index')"),
+			),
+			mcp.WithBoolean("include_orphans",
+				mcp.Description("Include notes with no links or tags (default: true)"),
+			),
+		),
+		v.GenerateIndexHandler,
+	)
 }
