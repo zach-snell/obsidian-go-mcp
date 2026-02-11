@@ -16,17 +16,17 @@ func TestExtractHeadings(t *testing.T) {
 			name:    "single h1",
 			content: "# Hello World",
 			expected: []Heading{
-				{Level: 1, Text: "Hello World", Line: 1},
+				{Level: 1, Text: "Hello World", Line: 1, EndLine: 1},
 			},
 		},
 		{
 			name:    "multiple levels",
 			content: "# Title\n\nSome text\n\n## Section 1\n\nContent\n\n### Subsection\n\n## Section 2",
 			expected: []Heading{
-				{Level: 1, Text: "Title", Line: 1},
-				{Level: 2, Text: "Section 1", Line: 5},
-				{Level: 3, Text: "Subsection", Line: 9},
-				{Level: 2, Text: "Section 2", Line: 11},
+				{Level: 1, Text: "Title", Line: 1, EndLine: 11},
+				{Level: 2, Text: "Section 1", Line: 5, EndLine: 10},
+				{Level: 3, Text: "Subsection", Line: 9, EndLine: 10},
+				{Level: 2, Text: "Section 2", Line: 11, EndLine: 11},
 			},
 		},
 		{
@@ -38,12 +38,12 @@ func TestExtractHeadings(t *testing.T) {
 			name:    "all levels",
 			content: "# H1\n## H2\n### H3\n#### H4\n##### H5\n###### H6",
 			expected: []Heading{
-				{Level: 1, Text: "H1", Line: 1},
-				{Level: 2, Text: "H2", Line: 2},
-				{Level: 3, Text: "H3", Line: 3},
-				{Level: 4, Text: "H4", Line: 4},
-				{Level: 5, Text: "H5", Line: 5},
-				{Level: 6, Text: "H6", Line: 6},
+				{Level: 1, Text: "H1", Line: 1, EndLine: 6},
+				{Level: 2, Text: "H2", Line: 2, EndLine: 6},
+				{Level: 3, Text: "H3", Line: 3, EndLine: 6},
+				{Level: 4, Text: "H4", Line: 4, EndLine: 6},
+				{Level: 5, Text: "H5", Line: 5, EndLine: 6},
+				{Level: 6, Text: "H6", Line: 6, EndLine: 6},
 			},
 		},
 	}
@@ -64,6 +64,9 @@ func TestExtractHeadings(t *testing.T) {
 				}
 				if result[i].Line != exp.Line {
 					t.Errorf("heading %d: expected line %d, got %d", i, exp.Line, result[i].Line)
+				}
+				if result[i].EndLine != exp.EndLine {
+					t.Errorf("heading %d: expected end_line %d, got %d", i, exp.EndLine, result[i].EndLine)
 				}
 			}
 		})

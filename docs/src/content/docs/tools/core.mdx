@@ -70,18 +70,60 @@ Create or update a note.
 
 ---
 
-### append-note
+### edit-note
 
-Append content to a note (creates if doesn't exist).
+Surgical find-and-replace within a note. Fails if old_text matches multiple times unless `replace_all` is set.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `path` | string | Yes | Path to note (.md extension required) |
-| `content` | string | Yes | Content to append |
+| `old_text` | string | Yes | Exact text to find and replace |
+| `new_text` | string | Yes | Replacement text |
+| `replace_all` | boolean | No | Replace all occurrences (default: false) |
+| `context_lines` | number | No | Surrounding lines to return for verification (default: 0) |
+
+**Example prompts:**
+- "Change 'draft' to 'published' in my article"
+- "Replace the old API endpoint with the new one in this note"
+- "Fix all typos of 'recieve' to 'receive' in my notes"
+
+---
+
+### append-note
+
+Insert content into a note with targeted positioning. Creates the note if it doesn't exist. Backward compatible — without position params, appends to end.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | Yes | Path to note (.md extension required) |
+| `content` | string | Yes | Content to insert |
+| `position` | string | No | Where to insert: end, start, after, before (default: end) |
+| `after` | string | No | Insert after this heading or text (overrides position) |
+| `before` | string | No | Insert before this heading or text (overrides position) |
+| `context_lines` | number | No | Surrounding lines to return for verification (default: 0) |
 
 **Example prompts:**
 - "Add a new task to my inbox"
-- "Append today's log entry to my journal"
+- "Insert a note after the 'Installation' heading"
+- "Add a warning before the 'Deployment' section"
+
+---
+
+### replace-section
+
+Replace all content under a heading. The heading line itself is preserved; everything below it until the next same-or-higher level heading is replaced.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | Yes | Path to note (.md extension required) |
+| `heading` | string | Yes | Heading text to find (case-insensitive) |
+| `content` | string | Yes | New content for the section |
+| `context_lines` | number | No | Surrounding lines to return for verification (default: 0) |
+
+**Example prompts:**
+- "Replace the 'Status' section with the new project status"
+- "Update the 'Dependencies' section in my project note"
+- "Rewrite the 'FAQ' section with these new questions"
 
 ---
 
@@ -178,15 +220,18 @@ Extract a specific heading section from a note.
 
 ### get-headings
 
-List all headings in a note.
+List all headings in a note with line ranges showing where each section starts and ends.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `path` | string | Yes | Path to the note |
 
+Returns each heading with its level, text, start line, and end line (useful for knowing section boundaries).
+
 **Example prompts:**
 - "What sections does this note have?"
 - "Show me the outline of my documentation"
+- "What line range does the Installation section cover?"
 
 ## Folder Operations
 

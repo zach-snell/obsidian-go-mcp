@@ -7,7 +7,7 @@
 
 A fast, lightweight [MCP](https://modelcontextprotocol.io/) server for [Obsidian](https://obsidian.md/) vaults. Built in Go for speed and simplicity.
 
-**[Documentation](https://zach-snell.github.io/obsidian-go-mcp/)** | **[Quick Start](#quick-start)** | **[Tools Reference](#tools-reference-67-total)**
+**[Documentation](https://zach-snell.github.io/obsidian-go-mcp/)** | **[Quick Start](#quick-start)** | **[Tools Reference](#tools-reference-69-total)**
 
 ## Why This Project?
 
@@ -16,7 +16,7 @@ A fast, lightweight [MCP](https://modelcontextprotocol.io/) server for [Obsidian
 | **No plugins required** | Works directly with vault files | Often require Obsidian REST API plugin |
 | **Single binary** | One file, zero dependencies | Node.js/Python runtime needed |
 | **Cross-platform** | macOS, Linux, Windows | Often have platform issues |
-| **67 tools** | Comprehensive vault operations | Typically 10-20 tools |
+| **69 tools** | Comprehensive vault operations | Typically 10-20 tools |
 | **Fast startup** | ~10ms | Seconds for interpreted languages |
 
 ## Quick Start
@@ -135,7 +135,7 @@ curl -sSL https://raw.githubusercontent.com/zach-snell/obsidian-go-mcp/main/inst
 
 ---
 
-## Tools Reference (67 total)
+## Tools Reference (69 total)
 
 ### Core Operations
 
@@ -145,7 +145,9 @@ curl -sSL https://raw.githubusercontent.com/zach-snell/obsidian-go-mcp/main/inst
 | `read-note` | Read a single note |
 | `read-notes` | Read multiple notes at once |
 | `write-note` | Create or update a note |
-| `append-note` | Append content to a note |
+| `edit-note` | Surgical find-and-replace |
+| `append-note` | Insert content with position targeting |
+| `replace-section` | Replace content under a heading |
 | `delete-note` | Delete a note |
 | `rename-note` | Rename and update all links |
 | `move-note` | Move to new location |
@@ -170,7 +172,7 @@ curl -sSL https://raw.githubusercontent.com/zach-snell/obsidian-go-mcp/main/inst
 | Tool | Description |
 |------|-------------|
 | `get-note-summary` | Lightweight metadata + preview |
-| `get-headings` | List all headings |
+| `get-headings` | List all headings with line ranges |
 | `get-section` | Extract a specific section |
 | `get-frontmatter` | Get YAML frontmatter |
 | `get-inline-fields` | Get Dataview fields |

@@ -180,23 +180,29 @@ func (v *Vault) DeleteNoteHandler(ctx context.Context, req mcp.CallToolRequest) 
 	return mcp.NewToolResultText(fmt.Sprintf("Successfully deleted: %s", path)), nil
 }
 
-// AppendNoteHandler appends content to a note (creates if doesn't exist)
+// AppendNoteHandler appends content to a note with optional targeted insertion.
+// Supports: position (end/start), after (heading/text), before (heading/text), context_lines.
 func (v *Vault) AppendNoteHandler(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	path, err := req.RequireString("path")
+	notePath, err := req.RequireString("path")
 	if err != nil {
 		return mcp.NewToolResultError("path is required"), nil
 	}
 
-	content, err := req.RequireString("content")
+	insertContent, err := req.RequireString("content")
 	if err != nil {
 		return mcp.NewToolResultError("content is required"), nil
 	}
 
-	if !strings.HasSuffix(path, ".md") {
+	position := req.GetString("position", "end")
+	afterTarget := req.GetString("after", "")
+	beforeTarget := req.GetString("before", "")
+	contextN := int(req.GetInt("context_lines", 0))
+
+	if !strings.HasSuffix(notePath, ".md") {
 		return mcp.NewToolResultError("path must end with .md"), nil
 	}
 
-	fullPath := filepath.Join(v.path, path)
+	fullPath := filepath.Join(v.path, notePath)
 
 	if !v.isPathSafe(fullPath) {
 		return mcp.NewToolResultError("path must be within vault"), nil
@@ -208,14 +214,110 @@ func (v *Vault) AppendNoteHandler(ctx context.Context, req mcp.CallToolRequest) 
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to create directory: %v", err)), nil
 	}
 
-	// Open file for appending (create if not exists)
+	// If after/before is specified, override position
+	if afterTarget != "" {
+		position = "after"
+	} else if beforeTarget != "" {
+		position = "before"
+	}
+
+	// For simple end/start append on new files, use original behavior
+	if position == "end" && afterTarget == "" && beforeTarget == "" {
+		return v.appendSimple(fullPath, notePath, insertContent, contextN)
+	}
+
+	// For targeted insertion, we need to read the file
+	existing, err := os.ReadFile(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// File doesn't exist - create with content regardless of position
+			if err := os.WriteFile(fullPath, []byte(insertContent), 0o600); err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("Failed to create note: %v", err)), nil
+			}
+			return mcp.NewToolResultText(fmt.Sprintf("Created: %s", notePath)), nil
+		}
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read note: %v", err)), nil
+	}
+
+	lines := strings.Split(string(existing), "\n")
+	insertLines := strings.Split(insertContent, "\n")
+
+	insertLineIdx, result, errResult := v.computeInsertion(lines, insertLines, position, afterTarget, beforeTarget)
+	if errResult != nil {
+		return errResult, nil
+	}
+
+	newContent := strings.Join(result, "\n")
+	if err := os.WriteFile(fullPath, []byte(newContent), 0o600); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to write note: %v", err)), nil
+	}
+
+	// Build response
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Inserted content in %s at line %d", notePath, insertLineIdx+1)
+
+	if contextN > 0 {
+		allLines := strings.Split(newContent, "\n")
+		editEnd := insertLineIdx + len(insertLines)
+		if editEnd > len(allLines) {
+			editEnd = len(allLines)
+		}
+		ctxStr := buildEditContext(allLines, insertLineIdx, editEnd, contextN, insertLines)
+		fmt.Fprintf(&sb, "\n\n--- Context ---\n%s", ctxStr)
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// computeInsertion determines where to insert lines and builds the result slice.
+// Returns the insertion line index, the new full lines slice, and an optional error result.
+func (v *Vault) computeInsertion(lines, insertLines []string, position, afterTarget, beforeTarget string) (insertIdx int, resultLines []string, errResult *mcp.CallToolResult) {
+	switch position {
+	case "start":
+		result := make([]string, 0, len(insertLines)+len(lines))
+		result = append(result, insertLines...)
+		result = append(result, lines...)
+		return 0, result, nil
+
+	case "after":
+		idx, err := findTargetLine(lines, afterTarget)
+		if err != nil {
+			return -1, nil, mcp.NewToolResultError(err.Error())
+		}
+		insertAt := idx + 1
+		result := make([]string, 0, len(lines)+len(insertLines))
+		result = append(result, lines[:insertAt]...)
+		result = append(result, insertLines...)
+		result = append(result, lines[insertAt:]...)
+		return insertAt, result, nil
+
+	case "before":
+		idx, err := findTargetLine(lines, beforeTarget)
+		if err != nil {
+			return -1, nil, mcp.NewToolResultError(err.Error())
+		}
+		result := make([]string, 0, len(lines)+len(insertLines))
+		result = append(result, lines[:idx]...)
+		result = append(result, insertLines...)
+		result = append(result, lines[idx:]...)
+		return idx, result, nil
+
+	default: // "end"
+		result := make([]string, 0, len(lines)+len(insertLines))
+		result = append(result, lines...)
+		result = append(result, insertLines...)
+		return len(lines), result, nil
+	}
+}
+
+// appendSimple handles the original simple append-to-end behavior
+func (v *Vault) appendSimple(fullPath, notePath, content string, contextN int) (*mcp.CallToolResult, error) {
 	f, err := os.OpenFile(fullPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to open note: %v", err)), nil
 	}
 	defer f.Close()
 
-	// Add newline before content if file is not empty
 	info, _ := f.Stat()
 	if info.Size() > 0 {
 		content = "\n" + content
@@ -225,7 +327,66 @@ func (v *Vault) AppendNoteHandler(ctx context.Context, req mcp.CallToolRequest) 
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to append to note: %v", err)), nil
 	}
 
-	return mcp.NewToolResultText(fmt.Sprintf("Appended to: %s", path)), nil
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Appended to: %s", notePath)
+
+	if contextN > 0 {
+		// Re-read file to build context
+		data, err := os.ReadFile(fullPath)
+		if err == nil {
+			allLines := strings.Split(string(data), "\n")
+			insertLines := strings.Split(content, "\n")
+			editStart := len(allLines) - len(insertLines)
+			if editStart < 0 {
+				editStart = 0
+			}
+			ctxStr := buildEditContext(allLines, editStart, len(allLines), contextN, insertLines)
+			fmt.Fprintf(&sb, "\n\n--- Context ---\n%s", ctxStr)
+		}
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// findTargetLine finds a target line (heading or text match).
+// Headings are matched first (case-insensitive), then falls back to text match.
+// Returns error if not found or ambiguous (multiple matches).
+func findTargetLine(lines []string, target string) (int, error) {
+	// First, try to match as a heading
+	headingMatches := []int{}
+	for i, line := range lines {
+		matches := headingRegex.FindStringSubmatch(line)
+		if matches != nil {
+			text := strings.TrimSpace(matches[2])
+			if strings.EqualFold(text, target) {
+				headingMatches = append(headingMatches, i)
+			}
+		}
+	}
+
+	if len(headingMatches) == 1 {
+		return headingMatches[0], nil
+	}
+	if len(headingMatches) > 1 {
+		return -1, fmt.Errorf("ambiguous target: found %d headings matching '%s'", len(headingMatches), target)
+	}
+
+	// Fall back to text match
+	textMatches := []int{}
+	for i, line := range lines {
+		if strings.Contains(line, target) {
+			textMatches = append(textMatches, i)
+		}
+	}
+
+	if len(textMatches) == 0 {
+		return -1, fmt.Errorf("target not found: '%s'", target)
+	}
+	if len(textMatches) > 1 {
+		return -1, fmt.Errorf("ambiguous target: found %d lines containing '%s'. Provide more specific text.", len(textMatches), target)
+	}
+
+	return textMatches[0], nil
 }
 
 // RecentNotesHandler lists recently modified notes

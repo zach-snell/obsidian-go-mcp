@@ -12,7 +12,7 @@ func New(vaultPath string) *server.MCPServer {
 
 	s := server.NewMCPServer(
 		"Obsidian Vault MCP",
-		"0.3.0",
+		"0.3.2",
 		server.WithToolCapabilities(false),
 	)
 
@@ -154,7 +154,7 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 	// append-note
 	s.AddTool(
 		mcp.NewTool("append-note",
-			mcp.WithDescription("Append content to a note (creates if doesn't exist)"),
+			mcp.WithDescription("Append content to a note (creates if doesn't exist). Supports targeted insertion with after/before/position params."),
 			mcp.WithString("path",
 				mcp.Required(),
 				mcp.Description("Path to the note (.md extension required)"),
@@ -163,8 +163,69 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 				mcp.Required(),
 				mcp.Description("Content to append"),
 			),
+			mcp.WithString("position",
+				mcp.Description("Where to insert: end, start, after, before (default: end)"),
+			),
+			mcp.WithString("after",
+				mcp.Description("Insert after this heading or text (overrides position to 'after')"),
+			),
+			mcp.WithString("before",
+				mcp.Description("Insert before this heading or text (overrides position to 'before')"),
+			),
+			mcp.WithNumber("context_lines",
+				mcp.Description("Number of surrounding lines to return for verification (default: 0)"),
+			),
 		),
 		v.AppendNoteHandler,
+	)
+
+	// edit-note
+	s.AddTool(
+		mcp.NewTool("edit-note",
+			mcp.WithDescription("Surgical find-and-replace within a note. Fails if old_text matches multiple times (use replace_all=true to override)."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note (.md extension required)"),
+			),
+			mcp.WithString("old_text",
+				mcp.Required(),
+				mcp.Description("Exact text to find and replace"),
+			),
+			mcp.WithString("new_text",
+				mcp.Required(),
+				mcp.Description("Replacement text"),
+			),
+			mcp.WithBoolean("replace_all",
+				mcp.Description("Replace all occurrences instead of failing on multiple matches (default: false)"),
+			),
+			mcp.WithNumber("context_lines",
+				mcp.Description("Number of surrounding lines to return for verification (default: 0)"),
+			),
+		),
+		v.EditNoteHandler,
+	)
+
+	// replace-section
+	s.AddTool(
+		mcp.NewTool("replace-section",
+			mcp.WithDescription("Replace all content under a heading (heading line is preserved, content below it is replaced until the next same-or-higher level heading)"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note (.md extension required)"),
+			),
+			mcp.WithString("heading",
+				mcp.Required(),
+				mcp.Description("Heading text to find (case-insensitive, e.g. 'Installation')"),
+			),
+			mcp.WithString("content",
+				mcp.Required(),
+				mcp.Description("New content for the section (heading line itself is preserved)"),
+			),
+			mcp.WithNumber("context_lines",
+				mcp.Description("Number of surrounding lines to return for verification (default: 0)"),
+			),
+		),
+		v.ReplaceSectionHandler,
 	)
 
 	// recent-notes

@@ -17,9 +17,10 @@ var headingRegex = regexp.MustCompile(`(?m)^(#{1,6})\s+(.+)$`)
 
 // Heading represents a markdown heading
 type Heading struct {
-	Level int    `json:"level"`
-	Text  string `json:"text"`
-	Line  int    `json:"line"`
+	Level   int    `json:"level"`
+	Text    string `json:"text"`
+	Line    int    `json:"line"`
+	EndLine int    `json:"end_line"` // Last line of section content (0 = extends to EOF or not computed)
 }
 
 // NoteSummary provides a lightweight view of a note
@@ -265,7 +266,7 @@ func (v *Vault) GetHeadingsHandler(ctx context.Context, req mcp.CallToolRequest)
 
 	for _, h := range headings {
 		prefix := strings.Repeat("#", h.Level)
-		fmt.Fprintf(&sb, "- L%d: `%s %s`\n", h.Line, prefix, h.Text)
+		fmt.Fprintf(&sb, "- L%d–%d: `%s %s`\n", h.Line, h.EndLine, prefix, h.Text)
 	}
 
 	return mcp.NewToolResultText(sb.String()), nil
@@ -341,10 +342,12 @@ func (v *Vault) SearchHeadingsHandler(ctx context.Context, req mcp.CallToolReque
 	return mcp.NewToolResultText(sb.String()), nil
 }
 
-// extractHeadings finds all headings in markdown content
+// extractHeadings finds all headings in markdown content and computes section boundaries.
+// Each heading's EndLine is the last line of its content (before the next same-or-higher level heading).
 func extractHeadings(content string) []Heading {
 	var headings []Heading
 	lines := strings.Split(content, "\n")
+	totalLines := len(lines)
 
 	for i, line := range lines {
 		matches := headingRegex.FindStringSubmatch(line)
@@ -355,6 +358,18 @@ func extractHeadings(content string) []Heading {
 				Line:  i + 1,
 			})
 		}
+	}
+
+	// Compute EndLine for each heading: the line before the next same-or-higher level heading
+	for i := range headings {
+		endLine := totalLines // default: extends to end of file
+		for j := i + 1; j < len(headings); j++ {
+			if headings[j].Level <= headings[i].Level {
+				endLine = headings[j].Line - 1
+				break
+			}
+		}
+		headings[i].EndLine = endLine
 	}
 
 	return headings
