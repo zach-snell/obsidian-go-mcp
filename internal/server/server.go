@@ -801,4 +801,65 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 		),
 		v.QueryInlineFieldsHandler,
 	)
+
+	// find-stubs
+	s.AddTool(
+		mcp.NewTool("find-stubs",
+			mcp.WithDescription("Find notes with few words that may need expansion"),
+			mcp.WithNumber("max_words",
+				mcp.Description("Maximum word count to be considered a stub (default: 100)"),
+			),
+			mcp.WithString("directory",
+				mcp.Description("Limit search to specific directory"),
+			),
+			mcp.WithNumber("limit",
+				mcp.Description("Maximum results to return (default: 50)"),
+			),
+		),
+		v.FindStubsHandler,
+	)
+
+	// find-outdated
+	s.AddTool(
+		mcp.NewTool("find-outdated",
+			mcp.WithDescription("Find notes not modified in a while"),
+			mcp.WithNumber("days",
+				mcp.Description("Days since last modification (default: 90)"),
+			),
+			mcp.WithString("directory",
+				mcp.Description("Limit search to specific directory"),
+			),
+			mcp.WithNumber("limit",
+				mcp.Description("Maximum results to return (default: 50)"),
+			),
+		),
+		v.FindOutdatedHandler,
+	)
+
+	// unlinked-mentions
+	s.AddTool(
+		mcp.NewTool("unlinked-mentions",
+			mcp.WithDescription("Find text matching a note's name that isn't linked"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note to find mentions of"),
+			),
+		),
+		v.UnlinkedMentionsHandler,
+	)
+
+	// suggest-links
+	s.AddTool(
+		mcp.NewTool("suggest-links",
+			mcp.WithDescription("Suggest notes that should be linked based on content"),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note to get suggestions for"),
+			),
+			mcp.WithNumber("limit",
+				mcp.Description("Maximum suggestions to return (default: 10)"),
+			),
+		),
+		v.SuggestLinksHandler,
+	)
 }
