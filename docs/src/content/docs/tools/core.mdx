@@ -131,6 +131,29 @@ Replace all content under a heading. The heading line itself is preserved; every
 
 ---
 
+### batch-edit-note
+
+Apply multiple find-and-replace edits to a note in one atomic operation. All edits are validated before any are applied — if any edit fails validation, none are applied. This prevents race conditions when parallel tool calls target the same file.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `path` | string | Yes | Path to note (.md extension required) |
+| `edits` | string | Yes | JSON array of edits: `[{"old_text": "find", "new_text": "replace"}, ...]` |
+| `context_lines` | number | No | Surrounding lines to return for verification (default: 0) |
+
+**How it works:**
+1. Reads the file once
+2. Validates every `old_text` exists exactly once
+3. Checks for overlapping edits
+4. Applies all edits in a single write (reverse offset order to prevent drift)
+
+**Example prompts:**
+- "Renumber headings 2-5 after I inserted a new section 2"
+- "Replace all three outdated API endpoints in this config note"
+- "Fix the function name and its two call sites in my code note"
+
+---
+
 ### delete-note
 
 Delete a note from the vault.

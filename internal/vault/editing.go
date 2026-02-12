@@ -2,9 +2,11 @@ package vault
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -297,4 +299,151 @@ func (v *Vault) ReplaceSectionHandler(ctx context.Context, req mcp.CallToolReque
 	}
 
 	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// editEntry represents a single find-and-replace operation in a batch
+type editEntry struct {
+	OldText string `json:"old_text"`
+	NewText string `json:"new_text"`
+}
+
+// locatedEdit is an editEntry with its byte offset in the file content
+type locatedEdit struct {
+	editEntry
+	offset int // byte offset of old_text in content
+}
+
+// BatchEditNoteHandler performs multiple find-and-replace operations atomically
+func (v *Vault) BatchEditNoteHandler(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	notePath, err := req.RequireString("path")
+	if err != nil {
+		return mcp.NewToolResultError("path is required"), nil
+	}
+
+	editsRaw, err := req.RequireString("edits")
+	if err != nil {
+		return mcp.NewToolResultError("edits is required (JSON array of {old_text, new_text} objects)"), nil
+	}
+
+	contextN := int(req.GetInt("context_lines", 0))
+
+	if !strings.HasSuffix(notePath, ".md") {
+		notePath += ".md"
+	}
+
+	fullPath := filepath.Join(v.path, notePath)
+	if !v.isPathSafe(fullPath) {
+		return mcp.NewToolResultError("path must be within vault"), nil
+	}
+
+	// Parse edits JSON
+	var edits []editEntry
+	if err := json.Unmarshal([]byte(editsRaw), &edits); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Invalid edits JSON: %v. Expected [{\"old_text\": \"...\", \"new_text\": \"...\"}, ...]", err)), nil
+	}
+
+	if len(edits) == 0 {
+		return mcp.NewToolResultError("edits array is empty"), nil
+	}
+
+	// Read file
+	content, err := os.ReadFile(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return mcp.NewToolResultError(fmt.Sprintf("Note not found: %s", notePath)), nil
+		}
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to read note: %v", err)), nil
+	}
+
+	contentStr := string(content)
+
+	// Validate all edits before applying any
+	located, validationErr := validateBatchEdits(contentStr, edits, notePath)
+	if validationErr != nil {
+		return validationErr, nil
+	}
+
+	// Sort by offset descending so we can apply from end to start without shifting
+	sort.Slice(located, func(i, j int) bool {
+		return located[i].offset > located[j].offset
+	})
+
+	// Apply all edits
+	result := contentStr
+	for _, le := range located {
+		result = result[:le.offset] + le.NewText + result[le.offset+len(le.OldText):]
+	}
+
+	if err := os.WriteFile(fullPath, []byte(result), 0o600); err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("Failed to write note: %v", err)), nil
+	}
+
+	// Build response
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Applied %d edit(s) to %s", len(edits), notePath)
+
+	if contextN > 0 && len(located) > 0 {
+		// Show context around the first edit (by file position, which is last in our sorted slice)
+		firstEdit := located[len(located)-1]
+		newLines := strings.Split(result, "\n")
+		replacementLines := strings.Split(firstEdit.NewText, "\n")
+
+		idx := strings.Index(result, firstEdit.NewText)
+		if idx >= 0 {
+			editStartLine := strings.Count(result[:idx], "\n")
+			editEndLine := editStartLine + len(replacementLines)
+			ctxStr := buildEditContext(newLines, editStartLine, editEndLine, contextN, replacementLines)
+			fmt.Fprintf(&sb, "\n\n--- Context (first edit) ---\n%s", ctxStr)
+		}
+	}
+
+	return mcp.NewToolResultText(sb.String()), nil
+}
+
+// validateBatchEdits checks that every old_text exists exactly once and that no edits overlap.
+// Returns located edits with byte offsets, or an error result.
+func validateBatchEdits(content string, edits []editEntry, notePath string) ([]locatedEdit, *mcp.CallToolResult) {
+	var located []locatedEdit
+	var errors []string
+
+	for i, e := range edits {
+		if e.OldText == "" {
+			errors = append(errors, fmt.Sprintf("edit %d: old_text is empty", i+1))
+			continue
+		}
+
+		count := strings.Count(content, e.OldText)
+		switch {
+		case count == 0:
+			errors = append(errors, fmt.Sprintf("edit %d: old_text not found: %q", i+1, truncateLine(e.OldText, 80)))
+		case count > 1:
+			errors = append(errors, fmt.Sprintf("edit %d: old_text found %d times (must be unique): %q", i+1, count, truncateLine(e.OldText, 80)))
+		default:
+			offset := strings.Index(content, e.OldText)
+			located = append(located, locatedEdit{editEntry: e, offset: offset})
+		}
+	}
+
+	if len(errors) > 0 {
+		return nil, mcp.NewToolResultError(fmt.Sprintf(
+			"Batch edit validation failed for %s:\n- %s",
+			notePath, strings.Join(errors, "\n- "),
+		))
+	}
+
+	// Check for overlapping edits
+	sort.Slice(located, func(i, j int) bool {
+		return located[i].offset < located[j].offset
+	})
+	for i := 1; i < len(located); i++ {
+		prevEnd := located[i-1].offset + len(located[i-1].OldText)
+		if located[i].offset < prevEnd {
+			return nil, mcp.NewToolResultError(fmt.Sprintf(
+				"Batch edit validation failed for %s: edits %d and %d overlap",
+				notePath, i, i+1,
+			))
+		}
+	}
+
+	return located, nil
 }

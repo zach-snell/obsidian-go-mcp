@@ -12,7 +12,7 @@ func New(vaultPath string) *server.MCPServer {
 
 	s := server.NewMCPServer(
 		"Obsidian Vault MCP",
-		"0.3.2",
+		"0.3.3",
 		server.WithToolCapabilities(false),
 	)
 
@@ -226,6 +226,25 @@ func registerTools(s *server.MCPServer, v *vault.Vault) {
 			),
 		),
 		v.ReplaceSectionHandler,
+	)
+
+	// batch-edit-note
+	s.AddTool(
+		mcp.NewTool("batch-edit-note",
+			mcp.WithDescription("Apply multiple find-and-replace edits to a note in one atomic operation. All edits are validated before any are applied."),
+			mcp.WithString("path",
+				mcp.Required(),
+				mcp.Description("Path to the note (.md extension required)"),
+			),
+			mcp.WithString("edits",
+				mcp.Required(),
+				mcp.Description(`JSON array of edits: [{"old_text": "find this", "new_text": "replace with"}, ...]`),
+			),
+			mcp.WithNumber("context_lines",
+				mcp.Description("Number of surrounding lines to return for verification (default: 0)"),
+			),
+		),
+		v.BatchEditNoteHandler,
 	)
 
 	// recent-notes

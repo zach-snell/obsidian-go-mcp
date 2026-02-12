@@ -787,3 +787,334 @@ func TestFindTargetLine(t *testing.T) {
 		}
 	})
 }
+
+// --- BatchEditNoteHandler tests ---
+
+func TestBatchEditNoteHandler(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("basic batch edit", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "## 1. Alpha\n\nContent.\n\n## 2. Beta\n\nContent.\n\n## 3. Gamma\n")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `[{"old_text": "## 2. Beta", "new_text": "## 3. Beta"}, {"old_text": "## 3. Gamma", "new_text": "## 4. Gamma"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.IsError {
+			t.Fatalf("expected success, got error: %v", result.Content)
+		}
+
+		content := readTestFile(t, dir, "doc.md")
+		if !strings.Contains(content, "## 3. Beta") {
+			t.Error("expected '## 3. Beta'")
+		}
+		if !strings.Contains(content, "## 4. Gamma") {
+			t.Error("expected '## 4. Gamma'")
+		}
+		if strings.Contains(content, "## 2. Beta") {
+			t.Error("old '## 2. Beta' should be gone")
+		}
+		if !strings.Contains(content, "## 1. Alpha") {
+			t.Error("untouched heading should remain")
+		}
+	})
+
+	t.Run("all or nothing - one not found fails entire batch", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "Hello world\nGoodbye world\n")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `[{"old_text": "Hello", "new_text": "Hi"}, {"old_text": "NONEXISTENT", "new_text": "nope"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error when edit not found")
+		}
+
+		// Verify nothing was changed
+		content := readTestFile(t, dir, "doc.md")
+		if !strings.Contains(content, "Hello world") {
+			t.Error("file should be unchanged on validation failure")
+		}
+	})
+
+	t.Run("duplicate old_text fails", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "foo bar\nfoo baz\n")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `[{"old_text": "foo", "new_text": "replaced"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for ambiguous old_text")
+		}
+		text := result.Content[0].(mcp.TextContent).Text
+		if !strings.Contains(text, "found 2 times") {
+			t.Errorf("expected match count in error, got: %s", text)
+		}
+	})
+
+	t.Run("empty edits array fails", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "content")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `[]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for empty edits")
+		}
+	})
+
+	t.Run("invalid JSON fails", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "content")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `not json`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for invalid JSON")
+		}
+	})
+
+	t.Run("overlapping edits fail", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "abcdefgh\n")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `[{"old_text": "abcdef", "new_text": "X"}, {"old_text": "defgh", "new_text": "Y"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for overlapping edits")
+		}
+		text := result.Content[0].(mcp.TextContent).Text
+		if !strings.Contains(text, "overlap") {
+			t.Errorf("expected overlap error, got: %s", text)
+		}
+	})
+
+	t.Run("note not found", func(t *testing.T) {
+		v, _ := setupTestVault(t)
+
+		req := makeRequest(map[string]any{
+			"path":  "nonexistent.md",
+			"edits": `[{"old_text": "a", "new_text": "b"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for missing file")
+		}
+	})
+
+	t.Run("path safety", func(t *testing.T) {
+		v, _ := setupTestVault(t)
+
+		req := makeRequest(map[string]any{
+			"path":  "../../etc/passwd",
+			"edits": `[{"old_text": "root", "new_text": "hacked"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for path traversal")
+		}
+	})
+
+	t.Run("with context_lines", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "line1\nline2\nline3\nline4\nline5\n")
+
+		req := makeRequest(map[string]any{
+			"path":          "doc.md",
+			"edits":         `[{"old_text": "line2", "new_text": "CHANGED2"}, {"old_text": "line4", "new_text": "CHANGED4"}]`,
+			"context_lines": float64(1),
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.IsError {
+			t.Fatalf("expected success, got error: %v", result.Content)
+		}
+		text := result.Content[0].(mcp.TextContent).Text
+		if !strings.Contains(text, "Context") {
+			t.Errorf("expected context output, got:\n%s", text)
+		}
+		if !strings.Contains(text, "Applied 2") {
+			t.Errorf("expected 'Applied 2' in response, got:\n%s", text)
+		}
+	})
+
+	t.Run("heading number cascade use case", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "guide.md", `# Guide
+
+## 1. Introduction
+
+Intro text.
+
+## 2. Setup
+
+Setup text.
+
+## 3. Configuration
+
+Config text.
+
+## 4. Deployment
+
+Deploy text.
+`)
+
+		// Simulate: inserted a new "## 2. Prerequisites" section, now need to bump 2→3, 3→4, 4→5
+		req := makeRequest(map[string]any{
+			"path": "guide.md",
+			"edits": `[
+				{"old_text": "## 2. Setup", "new_text": "## 3. Setup"},
+				{"old_text": "## 3. Configuration", "new_text": "## 4. Configuration"},
+				{"old_text": "## 4. Deployment", "new_text": "## 5. Deployment"}
+			]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.IsError {
+			t.Fatalf("expected success, got error: %v", result.Content)
+		}
+
+		content := readTestFile(t, dir, "guide.md")
+		if !strings.Contains(content, "## 1. Introduction") {
+			t.Error("unchanged heading should remain")
+		}
+		if !strings.Contains(content, "## 3. Setup") {
+			t.Error("expected renumbered Setup")
+		}
+		if !strings.Contains(content, "## 4. Configuration") {
+			t.Error("expected renumbered Configuration")
+		}
+		if !strings.Contains(content, "## 5. Deployment") {
+			t.Error("expected renumbered Deployment")
+		}
+		// Content under headings should be preserved
+		if !strings.Contains(content, "Setup text.") {
+			t.Error("section content should be preserved")
+		}
+	})
+
+	t.Run("empty old_text in one edit fails", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "content")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc.md",
+			"edits": `[{"old_text": "", "new_text": "something"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !result.IsError {
+			t.Fatal("expected error for empty old_text")
+		}
+	})
+
+	t.Run("auto-adds .md extension", func(t *testing.T) {
+		v, dir := setupTestVault(t)
+		writeTestFile(t, dir, "doc.md", "Hello world")
+
+		req := makeRequest(map[string]any{
+			"path":  "doc",
+			"edits": `[{"old_text": "Hello", "new_text": "Hi"}]`,
+		})
+
+		result, err := v.BatchEditNoteHandler(ctx, req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result.IsError {
+			t.Fatalf("expected success, got error: %v", result.Content)
+		}
+		content := readTestFile(t, dir, "doc.md")
+		if !strings.Contains(content, "Hi world") {
+			t.Errorf("expected 'Hi world', got: %s", content)
+		}
+	})
+}
+
+// --- validateBatchEdits tests ---
+
+func TestValidateBatchEdits(t *testing.T) {
+	t.Run("valid edits pass", func(t *testing.T) {
+		located, errResult := validateBatchEdits("alpha beta gamma", []editEntry{
+			{OldText: "alpha", NewText: "A"},
+			{OldText: "gamma", NewText: "G"},
+		}, "test.md")
+		if errResult != nil {
+			t.Fatalf("expected success, got error: %v", errResult)
+		}
+		if len(located) != 2 {
+			t.Fatalf("expected 2 located edits, got %d", len(located))
+		}
+	})
+
+	t.Run("reports multiple errors at once", func(t *testing.T) {
+		_, errResult := validateBatchEdits("hello world", []editEntry{
+			{OldText: "MISSING1", NewText: "A"},
+			{OldText: "MISSING2", NewText: "B"},
+		}, "test.md")
+		if errResult == nil {
+			t.Fatal("expected error")
+		}
+		text := errResult.Content[0].(mcp.TextContent).Text
+		if !strings.Contains(text, "MISSING1") || !strings.Contains(text, "MISSING2") {
+			t.Errorf("expected both errors reported, got: %s", text)
+		}
+	})
+}
