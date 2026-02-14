@@ -1,6 +1,6 @@
 module github.com/zach-snell/obsidian-go-mcp
 
-go 1.25.0
+go 1.24
 
 require (
 	github.com/mark3labs/mcp-go v0.43.2
