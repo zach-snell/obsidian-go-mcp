@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 
-	"github.com/mark3labs/mcp-go/server"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	mcpserver "github.com/zach-snell/obsidian-go-mcp/internal/server"
 )
 
@@ -28,7 +29,7 @@ func main() {
 	s := mcpserver.New(vaultPath)
 
 	// Start stdio server
-	if err := server.ServeStdio(s); err != nil {
+	if err := s.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
 }
